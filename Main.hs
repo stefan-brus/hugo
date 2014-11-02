@@ -9,6 +9,7 @@ import Control.Applicative
 import Control.Exception
 import Control.Monad.State
 
+import qualified Data.Map as M
 import Data.List
 
 import Network
@@ -38,7 +39,7 @@ connect = notify $ do
   r <- getStdGen
   h <- connectTo server (PortNumber (fromIntegral port))
   hSetBuffering h NoBuffering
-  return (Bot h t r)
+  return (Bot h t r M.empty False)
   where
     notify a = bracket_
       (printf "Connecting to %s ... " server >> hFlush stdout)

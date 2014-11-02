@@ -9,3 +9,5 @@ Commands:
 - ":uptime" - See how long hugo has been running for
 - ":nonsense" - Spout some nonsense
 - ":roll xdy" - Roll x y sided dice
+- ":phrase" - Generate a phrase
+- ":learn" - Activate language learning module

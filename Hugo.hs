@@ -20,13 +20,14 @@ import System.Time
 import Text.Printf
 
 import Config
+import Phrase
 import Words
 
 -----------
 -- TYPES --
 -----------
 
-data Bot = Bot { socket :: Handle, starttime :: ClockTime, randomgen :: StdGen }
+data Bot = Bot { socket :: Handle, starttime :: ClockTime, randomgen :: StdGen, phrasebook :: Phrasebook, learning :: Bool }
 
 type Net = StateT Bot IO
 
@@ -36,6 +37,8 @@ data Command =
   | Uptime
   | Nonsense
   | Roll Int Int
+  | Phrase
+  | Learn
   deriving (Show)
 
 --------------------------
@@ -50,7 +53,18 @@ eval x = case command x of
   Just Uptime -> uptime
   Just Nonsense -> nonsense
   Just (Roll d s) -> roll d s
-  Nothing -> return ()
+  Just Phrase -> phrase
+  Just Learn -> changeLearnState
+  Nothing -> do
+    isLearning <- gets learning
+    if isLearning && (not $ [cmdChar] `isPrefixOf` x) then analyze x else return ()
+
+-- Analyze a sentence - update the phrasebook with the words
+analyze :: String -> Net ()
+analyze x = do
+  pb <- gets phrasebook
+  let pb' = learnString pb x
+  modify $ updatePhrasebook pb'
 
 -- Quit!
 quit :: Net ()
@@ -83,6 +97,23 @@ roll x y = do
   action $ "rolls " ++ (show x) ++ "d" ++ (show y) ++ ": " ++ (show res)
   modify $ updateRndGen g'
 
+-- Generate a phrase from the phrasebook
+phrase :: Net ()
+phrase = do
+  pb <- gets phrasebook
+  g <- gets randomgen
+  let (p,g') = generatePhrase pb g
+  privmsg $ unwords p
+  modify $ updateRndGen g'
+
+-- Turns phrase learning on or off
+changeLearnState :: Net ()
+changeLearnState = do
+  l <- gets learning
+  let msg = if l then "Dectivating language module" else "Activating language module"
+  privmsg msg
+  modify $ updateLearnState (not l)
+
 -- See what command the given string is, or nothing if it isn't one
 command :: String -> Maybe Command
 command x
@@ -91,6 +122,8 @@ command x
   | is "uptime" = Just Uptime
   | is "nonsense" = Just Nonsense
   | is "roll" = parseRoll . safeTail $ words x
+  | is "phrase" = Just Phrase
+  | is "learn" = Just Learn
   | otherwise = Nothing
   where
     is cmd = (cmdChar : cmd) `isPrefixOf` x
@@ -128,7 +161,15 @@ prettyTime td = unwords $ map (uncurry (++) . first show) $ if null diffs then [
 
 -- Update the state with a new random generator
 updateRndGen :: StdGen -> Bot -> Bot
-updateRndGen g (Bot h t _) = Bot h t g
+updateRndGen g (Bot h t _ p l) = Bot h t g p l
+
+-- Update the state with a new phrasebook
+updatePhrasebook :: Phrasebook -> Bot -> Bot
+updatePhrasebook p (Bot h t g _ l) = Bot h t g p l
+
+-- Updates the phrase learning state
+updateLearnState :: Bool -> Bot -> Bot
+updateLearnState l (Bot h t g p _) = Bot h t g p l
 
 -- Generate a sentence of random length, with random words
 randomSentence :: StdGen -> (String, StdGen)
