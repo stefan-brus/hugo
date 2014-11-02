@@ -14,6 +14,7 @@ import Data.List
 import Network
 
 import System.IO
+import System.Time
 
 import Text.Printf
 
@@ -30,9 +31,10 @@ main = bracket connect disconnect loop
 -- Connect to server and set up initial bot state
 connect :: IO Bot
 connect = notify $ do
+  t <- getClockTime
   h <- connectTo server (PortNumber (fromIntegral port))
   hSetBuffering h NoBuffering
-  return (Bot h)
+  return (Bot h t)
   where
     notify a = bracket_
       (printf "Connecting to %s ... " server >> hFlush stdout)

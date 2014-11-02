@@ -5,12 +5,14 @@
 
 module Hugo where
 
+import Control.Arrow
 import Control.Monad.Reader
 
 import Data.List
 
 import System.Exit
 import System.IO
+import System.Time
 
 import Text.Printf
 
@@ -20,13 +22,14 @@ import Config
 -- TYPES --
 -----------
 
-data Bot = Bot { socket :: Handle }
+data Bot = Bot { socket :: Handle, starttime :: ClockTime }
 
 type Net = ReaderT Bot IO
 
 data Command =
     Quit
   | Id
+  | Uptime
 
 --------------------------
 -- HUGO LOGIC FUNCTIONS --
@@ -36,22 +39,31 @@ data Command =
 eval :: String -> Net ()
 eval x = case command x of
   Just Quit -> quit
-  Just Id -> say x
+  Just Id -> id' x
+  Just Uptime -> uptime
   Nothing -> return ()
 
 -- Quit!
 quit :: Net ()
 quit = write "QUIT :Exiting" >> io (exitWith ExitSuccess)
 
--- Say the given string
-say :: String -> Net ()
-say = privmsg . drop 4
+-- Say the string after the id command
+id' :: String -> Net ()
+id' = privmsg . drop 4
+
+-- Say what the uptime is
+uptime :: Net ()
+uptime = do
+  now <- io getClockTime
+  zero <- asks starttime
+  privmsg . prettyTime $ diffClockTimes now zero
 
 -- See what command the given string is, or nothing if it isn't one
 command :: String -> Maybe Command
 command x
   | is "quit" x = Just Quit
   | is "id" x = Just Id
+  | is "uptime" x = Just Uptime
   | otherwise = Nothing
   where
     is cmd y = (cmdChar : cmd) `isPrefixOf` y
@@ -74,3 +86,11 @@ write s = do
 -- Lift an IO action into the Net monad
 io :: IO a -> Net a
 io = liftIO
+
+-- Prettify a time difference
+prettyTime :: TimeDiff -> String
+prettyTime td = unwords $ map (uncurry (++) . first show) $ if null diffs then [(0,"s")] else diffs
+  where
+    diffs = filter ((/= 0) . fst) $ reverse $ snd $ foldl merge (tdSec td,[]) metrics
+    merge (tot,acc) (sec,typ) = let (sec',tot') = divMod tot sec in (tot',(sec',typ):acc)
+    metrics = [(86400,"d"),(3600,"h"),(60,"m"),(1,"s")]
