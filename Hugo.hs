@@ -8,7 +8,9 @@ module Hugo where
 import Control.Arrow
 import Control.Monad.State
 
+import Data.Char
 import Data.List
+import Data.Maybe
 
 import System.Exit
 import System.IO
@@ -33,6 +35,8 @@ data Command =
   | Id
   | Uptime
   | Nonsense
+  | Roll Int Int
+  deriving (Show)
 
 --------------------------
 -- HUGO LOGIC FUNCTIONS --
@@ -45,6 +49,7 @@ eval x = case command x of
   Just Id -> id' x
   Just Uptime -> uptime
   Just Nonsense -> nonsense
+  Just (Roll d s) -> roll d s
   Nothing -> return ()
 
 -- Quit!
@@ -70,16 +75,26 @@ nonsense = do
   privmsg msg
   modify $ updateRndGen g'
 
+-- Roll xdy
+roll :: Int -> Int -> Net ()
+roll x y = do
+  g <- gets randomgen
+  let (res,g') = foldr (\_ (acc,gen) -> let (r,gen') = randomR (1,y) gen in (r:acc,gen')) ([],g) [1..x]
+  --let (res,g') = randomRs (1,y) g :: (Int,StdGen)
+  action $ "rolls " ++ (show x) ++ "d" ++ (show y) ++ ": " ++ (show res)
+  modify $ updateRndGen g'
+
 -- See what command the given string is, or nothing if it isn't one
 command :: String -> Maybe Command
 command x
-  | is "quit" x = Just Quit
-  | is "id" x = Just Id
-  | is "uptime" x = Just Uptime
-  | is "nonsense" x = Just Nonsense
+  | is "quit" = Just Quit
+  | is "id" = Just Id
+  | is "uptime" = Just Uptime
+  | is "nonsense" = Just Nonsense
+  | is "roll" = parseRoll . safeTail $ words x
   | otherwise = Nothing
   where
-    is cmd y = (cmdChar : cmd) `isPrefixOf` y
+    is cmd = (cmdChar : cmd) `isPrefixOf` x
 
 ----------------------
 -- HELPER FUNCTIONS --
@@ -87,7 +102,11 @@ command x
 
 -- Write a "PRIVMSG" message to the server
 privmsg :: String -> Net ()
-privmsg x = write $ "PRIVMSG " ++ (chan ++ " :" ++ x)
+privmsg x = write $ "PRIVMSG " ++ (chan ++ " :" ++ (trim x))
+
+-- Write an action privmsg to the server
+action :: String -> Net ()
+action x = privmsg $ ['\x01'] ++ "ACTION " ++ x ++ ['\x01']
 
 -- Write a message to the server, and also to stdout
 write :: String -> Net ()
@@ -124,3 +143,41 @@ randomWords 0 g = ([], g)
 randomWords n g = let (rst,g'') = randomWords (n - 1) g' in ((allWords !! idx) : rst, g'')
   where
     (idx,g') = randomR (1,wordCount) g
+
+-- Safe head, gives Nothing for empty list
+safeHead :: [a] -> Maybe a
+safeHead = listToMaybe
+
+-- Safe tail, gives Nothing for empty list
+safeTail :: [a] -> Maybe [a]
+safeTail [] = Nothing
+safeTail (_:xs) = Just xs
+
+-- Parse the argument to a roll command
+parseRoll :: Maybe [String] -> Maybe Command
+parseRoll Nothing = Just (Roll 1 6)
+parseRoll (Just []) = Just (Roll 1 6)
+parseRoll (Just xs) = do
+  s <- safeHead xs
+  (dice,s') <- takeNumber s
+  (_,s'') <- takeChar 'd' s'
+  (sides,_) <- takeNumber s''
+  return (Roll dice sides)
+
+-- Take the given character from the string
+takeChar :: Char -> String -> Maybe (Char, String)
+takeChar _ [] = Nothing
+takeChar c (x:xs) = if c == x then Just (x,xs) else Nothing
+
+-- Take a number from the string
+takeNumber :: String -> Maybe (Int, String)
+takeNumber [] = Nothing
+takeNumber xs = let (digits,rest) = span isDigit xs in if length digits > 0 then Just (read digits,rest) else Nothing
+
+-- Trim a string down to the configured max length, keep the action symbol at the end if it exists
+trim :: String -> String
+trim xs
+  | length xs > maxLen = take (maxLen - 3) xs ++ "..." ++ if last xs == '\x01' then ['\x01'] else []
+  | otherwise = xs
+  where
+    maxLen = fromInteger msgMaxLen
