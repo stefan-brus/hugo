@@ -50,7 +50,7 @@ connect = notify $ do
 run :: Net ()
 run = do
   write $ "NICK " ++ nick
-  write $ "USER hugo 0 * :tutorial bot"
+  write $ "USER hugo 0 * :" ++ realname
   write $ "JOIN " ++ chan
   gets socket >>= listen
 
