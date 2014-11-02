@@ -80,7 +80,6 @@ roll :: Int -> Int -> Net ()
 roll x y = do
   g <- gets randomgen
   let (res,g') = foldr (\_ (acc,gen) -> let (r,gen') = randomR (1,y) gen in (r:acc,gen')) ([],g) [1..x]
-  --let (res,g') = randomRs (1,y) g :: (Int,StdGen)
   action $ "rolls " ++ (show x) ++ "d" ++ (show y) ++ ": " ++ (show res)
   modify $ updateRndGen g'
 
