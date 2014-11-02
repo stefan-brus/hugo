@@ -7,3 +7,4 @@ port = 6667
 chan = "##hugo-test"
 nick = "___hugo___"
 cmdChar = ':'
+nsnsMaxLen = 10

@@ -7,7 +7,7 @@ module Main where
 
 import Control.Applicative
 import Control.Exception
-import Control.Monad.Reader
+import Control.Monad.State
 
 import Data.List
 
@@ -15,6 +15,7 @@ import Network
 
 import System.IO
 import System.Time
+import System.Random
 
 import Text.Printf
 
@@ -26,15 +27,18 @@ main :: IO ()
 main = bracket connect disconnect loop
   where
     disconnect = hClose . socket
-    loop st = runReaderT run st
+    loop st = do
+      (v,_) <- runStateT run st
+      return v
 
 -- Connect to server and set up initial bot state
 connect :: IO Bot
 connect = notify $ do
   t <- getClockTime
+  r <- getStdGen
   h <- connectTo server (PortNumber (fromIntegral port))
   hSetBuffering h NoBuffering
-  return (Bot h t)
+  return (Bot h t r)
   where
     notify a = bracket_
       (printf "Connecting to %s ... " server >> hFlush stdout)
@@ -47,7 +51,7 @@ run = do
   write $ "NICK " ++ nick
   write $ "USER hugo 0 * :tutorial bot"
   write $ "JOIN " ++ chan
-  asks socket >>= listen
+  gets socket >>= listen
 
 -- Process input from the IRC server, handle pinging and ponging
 listen :: Handle -> Net ()
