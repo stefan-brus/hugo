@@ -91,7 +91,7 @@ nonsense = do
 
 -- Roll xdy
 roll :: Integer -> Integer -> Net ()
-roll x y = do
+roll x y = if x > 10000 || y > 10000 then privmsg "A limit of 10000 has been imposed on both arguments, meatbag." else do
   g <- gets randomgen
   let (res,g') = foldr (\_ (acc,gen) -> let (r,gen') = randomR (1,y) gen in (r:acc,gen')) ([],g) [1..x]
   action $ "rolls " ++ (show x) ++ "d" ++ (show y) ++ ": " ++ (show res)
