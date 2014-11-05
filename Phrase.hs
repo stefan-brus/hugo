@@ -52,16 +52,23 @@ generatePhrase pb g =
   let
     len = M.size pb
     (idx,g') = randomR (0,if len > 0 then len - 1 else len) g
+    (res,g'') = generate (M.toList pb !! idx) g'
   in
-    generate (M.toList pb !! idx) g'
+    (mergeDelims res,g'')
   where
+    mergeDelims :: Phrase -> Phrase
+    mergeDelims = reverse . foldl merge []
+      where
+        merge :: Phrase -> Word -> Phrase
+        merge [] w = [w]
+        merge res@(p:ps) w = if isDelim w then (p ++ w) : ps else w : res
     generate :: (Word, Paths) -> StdGen -> (Phrase, StdGen)
-    generate ("", _) gen = ([],gen)
+    generate ("", ps) gen = let (res,gen') = choose ps "" gen in (res,gen')
     generate (w,ps) gen | S.size ps == 0 = ([w],gen)
     generate (w,ps) gen =
       let
         len = S.size ps
-        (idx,gen') = randomR(0,if len > 0 then len - 1 else len) gen
+        (idx,gen') = randomR (0,if len > 0 then len - 1 else len) gen
         w' = S.toList ps !! idx
         ps' = case M.lookup w' pb of
                 Just paths -> paths
@@ -69,6 +76,25 @@ generatePhrase pb g =
         (rest,gen'') = generate (w',ps') gen'
       in
         (w:rest,gen'')
+
+    choose :: Paths -> Word -> StdGen -> (Phrase, StdGen)
+    choose ps w gen = case randomR (0,19) gen :: (Int,StdGen) of
+      (0,gen') -> ([],gen')
+      (n,gen') | n `elem` [1..18] -> generate (w,ps) gen'
+      (_,gen') -> let
+                   (delim,gen'') = chooseDelim gen'
+                   (res,gen''') = generatePhrase pb gen''
+                 in
+                   ([delim] : res, gen''')
+    chooseDelim :: StdGen -> (Char, StdGen)
+
+    chooseDelim gen = let (idx,gen') = randomR (0, length delims - 1) gen in (delims !! idx,gen')
+
+    isDelim :: Word -> Bool
+    isDelim [c] = c `elem` delims
+    isDelim _ = False
+
+    delims = ".,!?:;"
 
 ----------------------
 -- HELPER FUNCTIONS --
