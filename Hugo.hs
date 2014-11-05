@@ -36,7 +36,7 @@ data Command =
   | Id
   | Uptime
   | Nonsense
-  | Roll Int Int
+  | Roll Integer Integer
   | Phrase
   | Learn
   deriving (Show)
@@ -90,7 +90,7 @@ nonsense = do
   modify $ updateRndGen g'
 
 -- Roll xdy
-roll :: Int -> Int -> Net ()
+roll :: Integer -> Integer -> Net ()
 roll x y = do
   g <- gets randomgen
   let (res,g') = foldr (\_ (acc,gen) -> let (r,gen') = randomR (1,y) gen in (r:acc,gen')) ([],g) [1..x]
@@ -210,7 +210,7 @@ takeChar _ [] = Nothing
 takeChar c (x:xs) = if c == x then Just (x,xs) else Nothing
 
 -- Take a number from the string
-takeNumber :: String -> Maybe (Int, String)
+takeNumber :: String -> Maybe (Integer, String)
 takeNumber [] = Nothing
 takeNumber xs = let (digits,rest) = span isDigit xs in if length digits > 0 then Just (read digits,rest) else Nothing
 
