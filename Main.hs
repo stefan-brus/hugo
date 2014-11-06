@@ -59,8 +59,7 @@ listen :: Handle -> Net ()
 listen h = forever $ do
   s <- init <$> io (hGetLine h)
   io (putStrLn s)
-  if ping s then pong s else eval (clean s)
+  if ping s then pong s else eval s
   where
-    clean = drop 1 . dropWhile (/=':') . drop 1
     ping x = "PING :" `isPrefixOf` x
     pong x = write $ "PONG " ++ (':' : drop 6 x)

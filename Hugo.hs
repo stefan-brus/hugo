@@ -41,13 +41,31 @@ data Command =
   | Learn
   deriving (Show)
 
+data IrcMsgMeta =
+    ServerMeta { from :: String, magic :: String }
+  | MessageMeta { nickname :: String, username :: String, cmdname :: String, magic :: String}
+  deriving (Show)
+
+data IrcMessage = IrcMessage IrcMsgMeta String deriving (Show)
+
 --------------------------
 -- HUGO LOGIC FUNCTIONS --
 --------------------------
 
--- Check what the given command is and evaluate it
+-- Evaluate an IRC message in string format
 eval :: String -> Net ()
-eval x = case command x of
+eval x = case parseMessage x of
+  Just msg -> evalIrcMsg msg
+  Nothing -> return ()
+
+-- Evaluate an IRC message, skip server messages for now
+evalIrcMsg :: IrcMessage -> Net ()
+evalIrcMsg (IrcMessage (ServerMeta _ _) _) = return ()
+evalIrcMsg (IrcMessage (MessageMeta _ _ _ _) msg) = evalUserMsg msg
+
+-- Evaluate an IRC user message
+evalUserMsg :: String -> Net ()
+evalUserMsg x = case command x of
   Just Quit -> quit
   Just Id -> id' x
   Just Uptime -> uptime
@@ -221,3 +239,28 @@ trim xs
   | otherwise = xs
   where
     maxLen = fromInteger msgMaxLen
+
+-- Parse an IRC message and maybe generate an instance of IrcMessage
+parseMessage :: String -> Maybe IrcMessage
+parseMessage s = do
+  (_,s') <- takeUntil ':' s
+  h <- safeHead $ words $ drop 1 s'
+  if '!' `elem` h then ircMessage s' else serverMessage s'
+  where
+    serverMessage :: String -> Maybe IrcMessage
+    serverMessage m = do
+      (addr,m') <- takeUntil ' ' m
+      (mgc,m'') <- takeUntil ':' m'
+      return $ IrcMessage (ServerMeta addr mgc) m''
+    ircMessage :: String -> Maybe IrcMessage
+    ircMessage m = do
+      (nname,m') <- takeUntil '!' m
+      (uname,m'') <- takeUntil ' ' m'
+      (cname,m''') <- takeUntil ' ' m''
+      (mgc,m'''') <- takeUntil ':' m'''
+      return $ IrcMessage (MessageMeta nname uname cname mgc) m''''
+
+-- Take until the given char is reached
+takeUntil :: Char -> String -> Maybe (String,String)
+takeUntil _ [] = Nothing
+takeUntil c s = let res = takeWhile (/= c) s in Just (res,drop (length res + 1) s)
