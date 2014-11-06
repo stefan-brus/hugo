@@ -128,7 +128,7 @@ phrase = do
 changeLearnState :: Net ()
 changeLearnState = do
   l <- gets learning
-  let msg = if l then "Dectivating language module" else "Activating language module"
+  let msg = if l then "Dectivating language module, meatbag." else "Activating language module, meatbag."
   privmsg msg
   modify $ updateLearnState (not l)
 
