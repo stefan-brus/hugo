@@ -78,9 +78,9 @@ generatePhrase pb g =
         (w:rest,gen'')
 
     choose :: Paths -> Word -> StdGen -> (Phrase, StdGen)
-    choose ps w gen = case randomR (0,19) gen :: (Int,StdGen) of
+    choose ps w gen = case randomR (0,199) gen :: (Int,StdGen) of
       (0,gen') -> ([],gen')
-      (n,gen') | n `elem` [1..18] -> generate (w,ps) gen'
+      (n,gen') | n `elem` [1..198] -> generate (w,ps) gen'
       (_,gen') -> let
                    (delim,gen'') = chooseDelim gen'
                    (res,gen''') = generatePhrase pb gen''
