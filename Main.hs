@@ -39,7 +39,7 @@ connect = notify $ do
   r <- getStdGen
   h <- connectTo server (PortNumber (fromIntegral port))
   hSetBuffering h NoBuffering
-  return (Bot h t r M.empty False)
+  return (Bot h t r M.empty False "")
   where
     notify a = bracket_
       (printf "Connecting to %s ... " server >> hFlush stdout)
@@ -51,7 +51,7 @@ run :: Net ()
 run = do
   write $ "NICK " ++ nick
   write $ "USER hugo 0 * :" ++ realname
-  write $ "JOIN " ++ chan
+  mapM_ (write . (++) "JOIN ") chans
   gets socket >>= listen
 
 -- Process input from the IRC server, handle pinging and ponging

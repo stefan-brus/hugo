@@ -27,7 +27,7 @@ import Words
 -- TYPES --
 -----------
 
-data Bot = Bot { socket :: Handle, starttime :: ClockTime, randomgen :: StdGen, phrasebook :: Phrasebook, learning :: Bool }
+data Bot = Bot { socket :: Handle, starttime :: ClockTime, randomgen :: StdGen, phrasebook :: Phrasebook, learning :: Bool, channel :: String }
 
 type Net = StateT Bot IO
 
@@ -43,7 +43,7 @@ data Command =
 
 data IrcMsgMeta =
     ServerMeta { from :: String, magic :: String }
-  | MessageMeta { nickname :: String, username :: String, cmdname :: String, magic :: String}
+  | MessageMeta { nickname :: String, username :: String, cmdname :: String, chn :: String, magic :: String}
   deriving (Show)
 
 data IrcMessage = IrcMessage IrcMsgMeta String deriving (Show)
@@ -61,7 +61,9 @@ eval x = case parseMessage x of
 -- Evaluate an IRC message, skip server messages for now
 evalIrcMsg :: IrcMessage -> Net ()
 evalIrcMsg (IrcMessage (ServerMeta _ _) _) = return ()
-evalIrcMsg (IrcMessage (MessageMeta _ _ _ _) msg) = evalUserMsg msg
+evalIrcMsg (IrcMessage (MessageMeta _ _ _ ch _) msg) = do
+  modify $ updateChannel ch
+  evalUserMsg msg
 
 -- Evaluate an IRC user message
 evalUserMsg :: String -> Net ()
@@ -90,26 +92,30 @@ quit = write "QUIT :Exiting" >> io (exitWith ExitSuccess)
 
 -- Say the string after the id command
 id' :: String -> Net ()
-id' = privmsg . drop 4
+id' x = do
+  c <- gets channel
+  privmsg c $ drop 4 x
 
 -- Say what the uptime is
 uptime :: Net ()
 uptime = do
   now <- io getClockTime
   zero <- gets starttime
-  privmsg . prettyTime $ diffClockTimes now zero
+  c <- gets channel
+  privmsg c . prettyTime $ diffClockTimes now zero
 
 -- Spout some nonsense
 nonsense :: Net ()
 nonsense = do
   g <- gets randomgen
+  c <- gets channel
   let (msg,g') = randomSentence g
-  privmsg msg
+  privmsg c msg
   modify $ updateRndGen g'
 
 -- Roll xdy
 roll :: Integer -> Integer -> Net ()
-roll x y = if x > 10000 || y > 10000 then privmsg "A limit of 10000 has been imposed on both arguments, meatbag." else do
+roll x y = if x > 10000 || y > 10000 then do c <- gets channel; privmsg c "A limit of 10000 has been imposed on both arguments, meatbag." else do
   g <- gets randomgen
   let (res,g') = foldr (\_ (acc,gen) -> let (r,gen') = randomR (1,y) gen in (r:acc,gen')) ([],g) [1..x]
   action $ "rolls " ++ (show x) ++ "d" ++ (show y) ++ ": " ++ (show res)
@@ -120,16 +126,18 @@ phrase :: Net ()
 phrase = do
   pb <- gets phrasebook
   g <- gets randomgen
+  c <- gets channel
   let (p,g') = generatePhrase pb g
-  privmsg $ unwords p
+  privmsg c $ unwords p
   modify $ updateRndGen g'
 
 -- Turns phrase learning on or off
 changeLearnState :: Net ()
 changeLearnState = do
   l <- gets learning
+  c <- gets channel
   let msg = if l then "Dectivating language module, meatbag." else "Activating language module, meatbag."
-  privmsg msg
+  privmsg c msg
   modify $ updateLearnState (not l)
 
 -- See what command the given string is, or nothing if it isn't one
@@ -151,12 +159,14 @@ command x
 ----------------------
 
 -- Write a "PRIVMSG" message to the server
-privmsg :: String -> Net ()
-privmsg x = write $ "PRIVMSG " ++ (chan ++ " :" ++ (trim x))
+privmsg :: String -> String -> Net ()
+privmsg c x = write $ "PRIVMSG " ++ (c ++ " :" ++ (trim x))
 
 -- Write an action privmsg to the server
 action :: String -> Net ()
-action x = privmsg $ ['\x01'] ++ "ACTION " ++ x ++ ['\x01']
+action x = do
+  c <- gets channel
+  privmsg c $ ['\x01'] ++ "ACTION " ++ x ++ ['\x01']
 
 -- Write a message to the server, and also to stdout
 write :: String -> Net ()
@@ -179,15 +189,19 @@ prettyTime td = unwords $ map (uncurry (++) . first show) $ if null diffs then [
 
 -- Update the state with a new random generator
 updateRndGen :: StdGen -> Bot -> Bot
-updateRndGen g (Bot h t _ p l) = Bot h t g p l
+updateRndGen g (Bot h t _ p l c) = Bot h t g p l c
 
 -- Update the state with a new phrasebook
 updatePhrasebook :: Phrasebook -> Bot -> Bot
-updatePhrasebook p (Bot h t g _ l) = Bot h t g p l
+updatePhrasebook p (Bot h t g _ l c) = Bot h t g p l c
 
 -- Updates the phrase learning state
 updateLearnState :: Bool -> Bot -> Bot
-updateLearnState l (Bot h t g p _) = Bot h t g p l
+updateLearnState l (Bot h t g p _ c) = Bot h t g p l c
+
+-- Updates the current channel
+updateChannel :: String -> Bot -> Bot
+updateChannel c (Bot h t g p l _) = Bot h t g p l c
 
 -- Generate a sentence of random length, with random words
 randomSentence :: StdGen -> (String, StdGen)
@@ -257,8 +271,9 @@ parseMessage s = do
       (nname,m') <- takeUntil '!' m
       (uname,m'') <- takeUntil ' ' m'
       (cname,m''') <- takeUntil ' ' m''
-      (mgc,m'''') <- takeUntil ':' m'''
-      return $ IrcMessage (MessageMeta nname uname cname mgc) m''''
+      (ch,m'''') <- takeUntil ' ' m'''
+      (mgc,m''''') <- takeUntil ':' m''''
+      return $ IrcMessage (MessageMeta nname uname cname ch mgc) m'''''
 
 -- Take until the given char is reached
 takeUntil :: Char -> String -> Maybe (String,String)
