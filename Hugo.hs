@@ -27,7 +27,14 @@ import Words
 -- TYPES --
 -----------
 
-data Bot = Bot { socket :: Handle, starttime :: ClockTime, randomgen :: StdGen, phrasebook :: Phrasebook, learning :: Bool, channel :: String }
+data Bot = Bot {
+  socket :: Handle,
+  starttime :: ClockTime,
+  randomgen :: StdGen,
+  phrasebook :: Phrasebook,
+  learning :: Bool,
+  channel :: String
+}
 
 type Net = StateT Bot IO
 
@@ -42,8 +49,16 @@ data Command =
   deriving (Show)
 
 data IrcMsgMeta =
-    ServerMeta { from :: String, magic :: String }
-  | MessageMeta { nickname :: String, username :: String, cmdname :: String, chn :: String, magic :: String}
+    ServerMeta {
+      from :: String,
+      magic :: String
+    }
+  | MessageMeta {
+      nickname :: String,
+      username :: String, cmdname :: String,
+      chn :: String,
+      magic :: String
+    }
   deriving (Show)
 
 data IrcMessage = IrcMessage IrcMsgMeta String deriving (Show)
