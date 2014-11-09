@@ -8,9 +8,13 @@ module Hugo where
 import Control.Arrow
 import Control.Monad.State
 
+import qualified Data.ByteString.Char8 as B
 import Data.Char
 import Data.List
+import qualified Data.Map as M
 import Data.Maybe
+
+import qualified Database.Redis as R
 
 import System.Exit
 import System.IO
@@ -101,9 +105,12 @@ analyze x = do
   let pb' = learnString pb x
   modify $ updatePhrasebook pb'
 
--- Quit!
+-- Save the bot state to redis and quit.
 quit :: Net ()
-quit = write "QUIT :Exiting" >> io (exitWith ExitSuccess)
+quit = do
+  pb <- gets phrasebook
+  io $ savePhrasebook pb
+  write "QUIT :Exiting" >> io (exitWith ExitSuccess)
 
 -- Say the string after the id command
 id' :: String -> Net ()
@@ -168,6 +175,25 @@ command x
   | otherwise = Nothing
   where
     is cmd = (cmdChar : cmd) `isPrefixOf` x
+
+-- Save the phrasebook to redis
+savePhrasebook :: Phrasebook -> IO ()
+savePhrasebook pb = do
+  conn <- R.connect dbInfo
+  R.runRedis conn $ do
+    _ <- R.set (B.pack "hugo:phrasebook") (B.pack $ show pb)
+    return ()
+
+-- Read the phrasebook from redis
+readPhrasebook :: IO Phrasebook
+readPhrasebook = do
+  conn <- R.connect dbInfo
+  pb <- R.runRedis conn $ do
+    resStr <- R.get $ B.pack "hugo:phrasebook"
+    return $ case resStr of
+      Right (Just str) -> read $ B.unpack str
+      _ -> M.empty
+  return pb
 
 ----------------------
 -- HELPER FUNCTIONS --

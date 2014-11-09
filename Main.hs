@@ -9,7 +9,6 @@ import Control.Applicative
 import Control.Exception
 import Control.Monad.State
 
-import qualified Data.Map as M
 import Data.List
 
 import Network
@@ -27,7 +26,6 @@ import Hugo
 main :: IO ()
 main = bracket connect disconnect loop
   where
-    disconnect = hClose . socket
     loop st = do
       (v,_) <- runStateT run st
       return v
@@ -38,13 +36,19 @@ connect = notify $ do
   t <- getClockTime
   r <- getStdGen
   h <- connectTo server (PortNumber (fromIntegral port))
+  pb <- readPhrasebook
   hSetBuffering h NoBuffering
-  return (Bot h t r M.empty False "")
+  return (Bot h t r pb False "")
   where
     notify a = bracket_
       (printf "Connecting to %s ... " server >> hFlush stdout)
       (putStrLn "done.")
       a
+
+-- Save the bot state to redis and close the socket
+disconnect :: Bot -> IO ()
+disconnect b = do
+  hClose $ socket b
 
 -- Set up nick, join a channel, and start listening for commands
 run :: Net ()
