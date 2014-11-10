@@ -5,6 +5,7 @@
 
 module Hugo where
 
+import Control.Applicative
 import Control.Arrow
 import Control.Monad.State
 
@@ -50,6 +51,7 @@ data Command =
   | Roll Integer Integer
   | Phrase
   | Learn
+  | Status
   deriving (Show)
 
 data IrcMsgMeta =
@@ -94,6 +96,7 @@ evalUserMsg x = case command x of
   Just (Roll d s) -> roll d s
   Just Phrase -> phrase
   Just Learn -> changeLearnState
+  Just Status -> status
   Nothing -> do
     isLearning <- gets learning
     if isLearning && (not $ [cmdChar] `isPrefixOf` x) then analyze x else return ()
@@ -162,6 +165,15 @@ changeLearnState = do
   privmsg c msg
   modify $ updateLearnState (not l)
 
+-- Print the status of the bot
+status :: Net ()
+status = do
+  c <- gets channel
+  l <- gets learning
+  ps <- M.size <$> gets phrasebook
+  privmsg c $ if l then "I am currently learning meatbag speak." else "I am not currently learning."
+  privmsg c $ "I know " ++ show ps ++ " meatbag words."
+
 -- See what command the given string is, or nothing if it isn't one
 command :: String -> Maybe Command
 command x
@@ -172,6 +184,7 @@ command x
   | is "roll" = parseRoll . safeTail $ words x
   | is "phrase" = Just Phrase
   | is "learn" = Just Learn
+  | is "status" = Just Status
   | otherwise = Nothing
   where
     is cmd = (cmdChar : cmd) `isPrefixOf` x
