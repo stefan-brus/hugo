@@ -61,7 +61,8 @@ data IrcMsgMeta =
     }
   | MessageMeta {
       nickname :: String,
-      username :: String, cmdname :: String,
+      username :: String,
+      cmdname :: String,
       chn :: String,
       magic :: String
     }
@@ -107,6 +108,7 @@ analyze x = do
   pb <- gets phrasebook
   let pb' = learnString pb x
   modify $ updatePhrasebook pb'
+  io $ savePhrasebook pb
 
 -- Save the bot state to redis and quit.
 quit :: Net ()
