@@ -83,13 +83,13 @@ eval x = case parseMessage x of
 -- Evaluate an IRC message, skip server messages for now
 evalIrcMsg :: IrcMessage -> Net ()
 evalIrcMsg (IrcMessage (ServerMeta _ _) _) = return ()
-evalIrcMsg (IrcMessage (MessageMeta _ _ _ ch _) msg) = do
+evalIrcMsg (IrcMessage (MessageMeta nname _ _ ch _) msg) = do
   modify $ updateChannel ch
-  evalUserMsg msg
+  evalUserMsg msg nname
 
 -- Evaluate an IRC user message
-evalUserMsg :: String -> Net ()
-evalUserMsg x = case command x of
+evalUserMsg :: String -> String -> Net ()
+evalUserMsg x n = case command x of
   Just Quit -> quit
   Just Id -> id' x
   Just Uptime -> uptime
@@ -99,8 +99,20 @@ evalUserMsg x = case command x of
   Just Learn -> changeLearnState
   Just Status -> status
   Nothing -> do
+    reply x n
     isLearning <- gets learning
     if isLearning && (not $ [cmdChar] `isPrefixOf` x) then analyze x else return ()
+
+-- Reply to a user who said hugo's nick
+reply :: String -> String -> Net ()
+reply x n
+  | nick `elem` (words x) = do
+      pb <- gets phrasebook
+      g <- gets randomgen
+      let (p,g') = generatePhrase pb g
+      modify $ updateRndGen g'
+      privmsg $ n ++ ", " ++ (unwords p)
+  | otherwise = return ()
 
 -- Analyze a sentence - update the phrasebook with the words
 analyze :: String -> Net ()
