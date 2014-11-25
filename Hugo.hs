@@ -119,30 +119,26 @@ quit = do
 
 -- Say the string after the id command
 id' :: String -> Net ()
-id' x = do
-  c <- gets channel
-  privmsg c $ drop 4 x
+id' x = privmsg $ drop 4 x
 
 -- Say what the uptime is
 uptime :: Net ()
 uptime = do
   now <- io getClockTime
   zero <- gets starttime
-  c <- gets channel
-  privmsg c . prettyTime $ diffClockTimes now zero
+  privmsg . prettyTime $ diffClockTimes now zero
 
 -- Spout some nonsense
 nonsense :: Net ()
 nonsense = do
   g <- gets randomgen
-  c <- gets channel
   let (msg,g') = randomSentence g
-  privmsg c msg
+  privmsg msg
   modify $ updateRndGen g'
 
 -- Roll xdy
 roll :: Integer -> Integer -> Net ()
-roll x y = if x > 10000 || y > 10000 then do c <- gets channel; privmsg c "A limit of 10000 has been imposed on both arguments, meatbag." else do
+roll x y = if x > 10000 || y > 10000 then privmsg "A limit of 10000 has been imposed on both arguments, meatbag." else do
   g <- gets randomgen
   let (res,g') = foldr (\_ (acc,gen) -> let (r,gen') = randomR (1,y) gen in (r:acc,gen')) ([],g) [1..x]
   action $ "rolls " ++ (show x) ++ "d" ++ (show y) ++ ": " ++ (show res)
@@ -153,28 +149,25 @@ phrase :: Net ()
 phrase = do
   pb <- gets phrasebook
   g <- gets randomgen
-  c <- gets channel
   let (p,g') = generatePhrase pb g
-  privmsg c $ unwords p
+  privmsg $ unwords p
   modify $ updateRndGen g'
 
 -- Turns phrase learning on or off
 changeLearnState :: Net ()
 changeLearnState = do
   l <- gets learning
-  c <- gets channel
   let msg = if l then "Dectivating language module, meatbag." else "Activating language module, meatbag."
-  privmsg c msg
+  privmsg msg
   modify $ updateLearnState (not l)
 
 -- Print the status of the bot
 status :: Net ()
 status = do
-  c <- gets channel
   l <- gets learning
   ps <- M.size <$> gets phrasebook
-  privmsg c $ if l then "I am currently learning meatbag speak." else "I am not currently learning."
-  privmsg c $ "I know " ++ show ps ++ " meatbag words."
+  privmsg $ if l then "I am currently learning meatbag speak." else "I am not currently learning."
+  privmsg $ "I know " ++ show ps ++ " meatbag words."
 
 -- See what command the given string is, or nothing if it isn't one
 command :: String -> Maybe Command
@@ -215,14 +208,14 @@ readPhrasebook = do
 ----------------------
 
 -- Write a "PRIVMSG" message to the server
-privmsg :: String -> String -> Net ()
-privmsg c x = write $ "PRIVMSG " ++ (c ++ " :" ++ (trim x))
+privmsg :: String -> Net ()
+privmsg x = do
+  c <- gets channel
+  write $ "PRIVMSG " ++ (c ++ " :" ++ (trim x))
 
 -- Write an action privmsg to the server
 action :: String -> Net ()
-action x = do
-  c <- gets channel
-  privmsg c $ ['\x01'] ++ "ACTION " ++ x ++ ['\x01']
+action x = privmsg $ ['\x01'] ++ "ACTION " ++ x ++ ['\x01']
 
 -- Write a message to the server, and also to stdout
 write :: String -> Net ()
