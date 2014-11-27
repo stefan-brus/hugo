@@ -90,13 +90,13 @@ evalIrcMsg (IrcMessage (MessageMeta nname _ _ ch _) msg) = do
 -- Evaluate an IRC user message
 evalUserMsg :: String -> String -> Net ()
 evalUserMsg x n = case command x of
-  Just Quit -> quit
+  Just Quit -> quit n
   Just Id -> id' x
   Just Uptime -> uptime
   Just Nonsense -> nonsense
   Just (Roll d s) -> roll d s
   Just Phrase -> phrase
-  Just Learn -> changeLearnState
+  Just Learn -> changeLearnState n
   Just Status -> status
   Nothing -> do
     reply x n
@@ -122,9 +122,9 @@ analyze x = do
   modify $ updatePhrasebook pb'
   io $ savePhrasebook pb
 
--- Save the bot state to redis and quit.
-quit :: Net ()
-quit = do
+-- Save the bot state to redis and quit. Admin command.
+quit :: String -> Net ()
+quit n = if n /= admin then scold n else do
   pb <- gets phrasebook
   io $ savePhrasebook pb
   write "QUIT :Exiting" >> io (exitWith ExitSuccess)
@@ -166,8 +166,8 @@ phrase = do
   modify $ updateRndGen g'
 
 -- Turns phrase learning on or off
-changeLearnState :: Net ()
-changeLearnState = do
+changeLearnState :: String -> Net ()
+changeLearnState n = if n /= admin then scold n else do
   l <- gets learning
   let msg = if l then "Dectivating language module, meatbag." else "Activating language module, meatbag."
   privmsg msg
@@ -228,6 +228,10 @@ privmsg x = do
 -- Write an action privmsg to the server
 action :: String -> Net ()
 action x = privmsg $ ['\x01'] ++ "ACTION " ++ x ++ ['\x01']
+
+-- Scold a user for trying to execute an admin command
+scold :: String -> Net ()
+scold n = privmsg $ n ++ ", you are not an admin meatbag, meatbag."
 
 -- Write a message to the server, and also to stdout
 write :: String -> Net ()

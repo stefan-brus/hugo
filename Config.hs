@@ -13,3 +13,4 @@ realname = "Hugo the bot"
 cmdChar = ':'
 msgMaxLen = 250
 nsnsMaxLen = 10
+admin = "stefan_1__"
