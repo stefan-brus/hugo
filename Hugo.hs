@@ -106,7 +106,7 @@ evalUserMsg x n = case command x of
 -- Reply to a user who said hugo's nick
 reply :: String -> String -> Net ()
 reply x n
-  | nick `elem` (words x) = do
+  | nick `isInfixOf` x = do
       pb <- gets phrasebook
       g <- gets randomgen
       let (p,g') = generatePhrase pb g
