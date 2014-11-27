@@ -14,11 +14,14 @@ import Data.Char
 import Data.List
 import qualified Data.Map as M
 import Data.Maybe
+import Data.Time.Clock
+import Data.Time.Format
 
 import qualified Database.Redis as R
 
 import System.Exit
 import System.IO
+import System.Locale
 import System.Random
 import System.Time
 
@@ -54,6 +57,7 @@ data Command =
   | Learn
   | Status
   | Respond
+  | IsFriday
   deriving (Show)
 
 data IrcMsgMeta =
@@ -101,6 +105,7 @@ evalUserMsg x n = case command x of
   Just Learn -> changeLearnState n
   Just Status -> status
   Just Respond -> changeRespondState n
+  Just IsFriday -> friday
   Nothing -> do
     isResponding <- gets responding
     when isResponding $ reply x n
@@ -193,6 +198,13 @@ status = do
   privmsg $ if l then "I am currently learning meatbag speak." else "I am not currently learning."
   privmsg $ "I know " ++ show ps ++ " meatbag words."
 
+-- Check if it's friday
+friday :: Net ()
+friday = do
+  day <- io today
+  let msg = if day == "Friday" then "It's friday, meatbags!" else "Negative, meatbag. It is " ++ day ++ "."
+  privmsg msg
+
 -- See what command the given string is, or nothing if it isn't one
 command :: String -> Maybe Command
 command x
@@ -205,6 +217,7 @@ command x
   | is "learn" = Just Learn
   | is "status" = Just Status
   | is "respond" = Just Respond
+  | is "friday" = Just IsFriday
   | otherwise = Nothing
   where
     is cmd = (cmdChar : cmd) `isPrefixOf` x
@@ -361,3 +374,7 @@ parseMessage s = do
 takeUntil :: Char -> String -> Maybe (String,String)
 takeUntil _ [] = Nothing
 takeUntil c s = let res = takeWhile (/= c) s in Just (res,drop (length res + 1) s)
+
+-- Find out what day it is
+today :: IO String
+today = (formatTime defaultTimeLocale "%A" . utctDay) <$> getCurrentTime

@@ -10,6 +10,7 @@ Commands:
 - ":roll xdy" - Roll x y sided dice
 - ":phrase" - Generate a phrase
 - ":status" - Check the current status
+- ":friday" - Check if it's friday today
 
 Admin commands:
 - ":quit" - Ask hugo to quit
