@@ -38,6 +38,7 @@ data Bot = Bot {
   randomgen :: StdGen,
   phrasebook :: Phrasebook,
   learning :: Bool,
+  responding :: Bool,
   channel :: String
 }
 
@@ -52,6 +53,7 @@ data Command =
   | Phrase
   | Learn
   | Status
+  | Respond
   deriving (Show)
 
 data IrcMsgMeta =
@@ -98,8 +100,10 @@ evalUserMsg x n = case command x of
   Just Phrase -> phrase
   Just Learn -> changeLearnState n
   Just Status -> status
+  Just Respond -> changeRespondState n
   Nothing -> do
-    reply x n
+    isResponding <- gets responding
+    when isResponding $ reply x n
     isLearning <- gets learning
     if isLearning && (not $ [cmdChar] `isPrefixOf` x) then analyze x else return ()
 
@@ -165,13 +169,21 @@ phrase = do
   privmsg $ unwords p
   modify $ updateRndGen g'
 
--- Turns phrase learning on or off
+-- Turns phrase learning on or off. Admin command.
 changeLearnState :: String -> Net ()
 changeLearnState n = if n /= admin then scold n else do
   l <- gets learning
   let msg = if l then "Dectivating language module, meatbag." else "Activating language module, meatbag."
   privmsg msg
   modify $ updateLearnState (not l)
+
+-- Turns responding on or off. Admin command.
+changeRespondState :: String -> Net ()
+changeRespondState n = if n /= admin then scold n else do
+  r <- gets responding
+  let msg = if r then "Ignoring meatbag addressments." else "Attempting to converse with meatbags."
+  privmsg msg
+  modify $ updateRespondState (not r)
 
 -- Print the status of the bot
 status :: Net ()
@@ -192,6 +204,7 @@ command x
   | is "phrase" = Just Phrase
   | is "learn" = Just Learn
   | is "status" = Just Status
+  | is "respond" = Just Respond
   | otherwise = Nothing
   where
     is cmd = (cmdChar : cmd) `isPrefixOf` x
@@ -254,19 +267,23 @@ prettyTime td = unwords $ map (uncurry (++) . first show) $ if null diffs then [
 
 -- Update the state with a new random generator
 updateRndGen :: StdGen -> Bot -> Bot
-updateRndGen g (Bot h t _ p l c) = Bot h t g p l c
+updateRndGen g (Bot h t _ p l r c) = Bot h t g p l r c
 
 -- Update the state with a new phrasebook
 updatePhrasebook :: Phrasebook -> Bot -> Bot
-updatePhrasebook p (Bot h t g _ l c) = Bot h t g p l c
+updatePhrasebook p (Bot h t g _ l r c) = Bot h t g p l r c
 
 -- Updates the phrase learning state
 updateLearnState :: Bool -> Bot -> Bot
-updateLearnState l (Bot h t g p _ c) = Bot h t g p l c
+updateLearnState l (Bot h t g p _ r c) = Bot h t g p l r c
+
+-- Updates the responding state
+updateRespondState :: Bool -> Bot -> Bot
+updateRespondState r (Bot h t g p l _ c) = Bot h t g p l r c
 
 -- Updates the current channel
 updateChannel :: String -> Bot -> Bot
-updateChannel c (Bot h t g p l _) = Bot h t g p l c
+updateChannel c (Bot h t g p l r _) = Bot h t g p l r c
 
 -- Generate a sentence of random length, with random words
 randomSentence :: StdGen -> (String, StdGen)

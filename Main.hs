@@ -38,7 +38,7 @@ connect = notify $ do
   h <- connectTo server (PortNumber (fromIntegral port))
   pb <- readPhrasebook
   hSetBuffering h NoBuffering
-  return (Bot h t r pb False "")
+  return (Bot h t r pb False True "")
   where
     notify a = bracket_
       (printf "Connecting to %s ... " server >> hFlush stdout)
