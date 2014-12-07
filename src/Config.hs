@@ -33,3 +33,6 @@ nsnsMaxLen = 10
 
 admin :: String
 admin = "stefan_1"
+
+password :: String
+password = "hunter2"

@@ -51,6 +51,7 @@ disconnect b = do
 -- Set up nick, join a channel, and start listening for commands
 run :: Net ()
 run = do
+  write $ "PASS " ++ Config.password
   write $ "NICK " ++ Config.nick
   write $ "USER hugo 0 * :" ++ Config.realname
   mapM_ (write . (++) "JOIN ") Config.chans
