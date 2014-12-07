@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
-
 -- Hugo bot module
 -- Contains the logic for handling various commands
 

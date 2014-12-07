@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
-
 -- Infix calculator module
 
 module Calc where

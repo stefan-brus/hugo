@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
-
 -- Phrase learner & generator module
 
 module Phrase where

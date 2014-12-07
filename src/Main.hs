@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
-
 -- Hugo main module
 -- Connects to the irc server, joins a channel, and passes messages to hugo
 
