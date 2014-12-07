@@ -17,7 +17,7 @@ import System.Random
 
 import Text.Printf
 
-import Config
+import qualified Config
 import Hugo
 
 -- Connect to server, run main loop, disconnect on exit
@@ -33,13 +33,13 @@ connect :: IO Bot
 connect = notify $ do
   t <- getClockTime
   r <- getStdGen
-  h <- connectTo server (PortNumber (fromIntegral port))
+  h <- connectTo Config.server (PortNumber (fromIntegral Config.port))
   pb <- readPhrasebook
   hSetBuffering h NoBuffering
   return (Bot h t r pb True True "")
   where
     notify a = bracket_
-      (printf "Connecting to %s ... " server >> hFlush stdout)
+      (printf "Connecting to %s ... " Config.server >> hFlush stdout)
       (putStrLn "done.")
       a
 
@@ -51,9 +51,9 @@ disconnect b = do
 -- Set up nick, join a channel, and start listening for commands
 run :: Net ()
 run = do
-  write $ "NICK " ++ nick
-  write $ "USER hugo 0 * :" ++ realname
-  mapM_ (write . (++) "JOIN ") chans
+  write $ "NICK " ++ Config.nick
+  write $ "USER hugo 0 * :" ++ Config.realname
+  mapM_ (write . (++) "JOIN ") Config.chans
   gets socket >>= listen
 
 -- Process input from the IRC server, handle pinging and ponging

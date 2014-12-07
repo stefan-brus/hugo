@@ -26,7 +26,7 @@ import System.Time
 import Text.Printf
 
 import Calc
-import Config
+import qualified Config
 import Phrase
 import Words
 
@@ -111,12 +111,12 @@ evalUserMsg x n = case command x of
     isResponding <- gets responding
     when isResponding $ reply x n
     isLearning <- gets learning
-    if isLearning && (not $ [cmdChar] `isPrefixOf` x) then analyze x else return ()
+    if isLearning && (not $ [Config.cmdChar] `isPrefixOf` x) then analyze x else return ()
 
 -- Reply to a user who said hugo's nick
 reply :: String -> String -> Net ()
 reply x n
-  | nick `isInfixOf` x = do
+  | Config.nick `isInfixOf` x = do
       pb <- gets phrasebook
       g <- gets randomgen
       let (p,g') = generatePhrase pb g
@@ -134,7 +134,7 @@ analyze x = do
 
 -- Save the bot state to redis and quit. Admin command.
 quit :: String -> Net ()
-quit n = if n /= admin then scold n else do
+quit n = if n /= Config.admin then scold n else do
   pb <- gets phrasebook
   io $ savePhrasebook pb
   write "QUIT :Exiting" >> io (exitWith ExitSuccess)
@@ -177,7 +177,7 @@ phrase = do
 
 -- Turns phrase learning on or off. Admin command.
 changeLearnState :: String -> Net ()
-changeLearnState n = if n /= admin then scold n else do
+changeLearnState n = if n /= Config.admin then scold n else do
   l <- gets learning
   let msg = if l then "Dectivating language module, meatbag." else "Activating language module, meatbag."
   privmsg msg
@@ -185,7 +185,7 @@ changeLearnState n = if n /= admin then scold n else do
 
 -- Turns responding on or off. Admin command.
 changeRespondState :: String -> Net ()
-changeRespondState n = if n /= admin then scold n else do
+changeRespondState n = if n /= Config.admin then scold n else do
   r <- gets responding
   let msg = if r then "Ignoring meatbag addressments." else "Attempting to converse with meatbags."
   privmsg msg
@@ -229,12 +229,12 @@ command x
   | is "calc" = Just . Calc $ drop (length ":calc") x
   | otherwise = Nothing
   where
-    is cmd = (cmdChar : cmd) `isPrefixOf` x
+    is cmd = (Config.cmdChar : cmd) `isPrefixOf` x
 
 -- Save the phrasebook to redis
 savePhrasebook :: Phrasebook -> IO ()
 savePhrasebook pb = do
-  conn <- R.connect dbInfo
+  conn <- R.connect Config.dbInfo
   R.runRedis conn $ do
     _ <- R.set (B.pack "hugo:phrasebook") (B.pack $ show pb)
     return ()
@@ -242,7 +242,7 @@ savePhrasebook pb = do
 -- Read the phrasebook from redis
 readPhrasebook :: IO Phrasebook
 readPhrasebook = do
-  conn <- R.connect dbInfo
+  conn <- R.connect Config.dbInfo
   pb <- R.runRedis conn $ do
     resStr <- R.get $ B.pack "hugo:phrasebook"
     return $ case resStr of
@@ -311,7 +311,7 @@ updateChannel c (Bot h t g p l r _) = Bot h t g p l r c
 randomSentence :: StdGen -> (String, StdGen)
 randomSentence g = let (res,g'') = randomWords len g' in (unwords res, g'')
   where
-    (len,g') = randomR (2,nsnsMaxLen) g
+    (len,g') = randomR (2,Config.nsnsMaxLen) g
 
 -- Generate a list of random words
 randomWords :: Integer -> StdGen -> ([String], StdGen)
@@ -356,7 +356,7 @@ trim xs
   | length xs > maxLen = take (maxLen - 3) xs ++ "..." ++ if last xs == '\x01' then ['\x01'] else []
   | otherwise = xs
   where
-    maxLen = fromInteger msgMaxLen
+    maxLen = fromInteger Config.msgMaxLen
 
 -- Parse an IRC message and maybe generate an instance of IrcMessage
 parseMessage :: String -> Maybe IrcMessage
