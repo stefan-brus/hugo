@@ -60,6 +60,7 @@ generatePhrase pb g =
         merge :: Phrase -> Word -> Phrase
         merge [] w = [w]
         merge res@(p:ps) w = if isDelim w then (p ++ w) : ps else w : res
+
     generate :: (Word, Paths) -> StdGen -> (Phrase, StdGen)
     generate ("", ps) gen = let (res,gen') = choose ps "" gen in (res,gen')
     generate (w,ps) gen | S.size ps == 0 = ([w],gen)
@@ -84,14 +85,15 @@ generatePhrase pb g =
                    (res,gen''') = generatePhrase pb gen''
                  in
                    ([delim] : res, gen''')
-    chooseDelim :: StdGen -> (Char, StdGen)
 
+    chooseDelim :: StdGen -> (Char, StdGen)
     chooseDelim gen = let (idx,gen') = randomR (0, length delims - 1) gen in (delims !! idx,gen')
 
     isDelim :: Word -> Bool
     isDelim [c] = c `elem` delims
     isDelim _ = False
 
+    delims :: String
     delims = ".,!?:;"
 
 ----------------------
