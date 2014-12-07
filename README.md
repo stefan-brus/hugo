@@ -11,6 +11,7 @@ Commands:
 - ":phrase" - Generate a phrase
 - ":status" - Check the current status
 - ":friday" - Check if it's friday today
+- ":calc (expression)" - Calculate the value of the given expression, e.g. ":calc 2 + 2"
 
 Admin commands:
 - ":quit" - Ask hugo to quit

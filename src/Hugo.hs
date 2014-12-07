@@ -27,6 +27,7 @@ import System.Time
 
 import Text.Printf
 
+import Calc
 import Config
 import Phrase
 import Words
@@ -58,6 +59,7 @@ data Command =
   | Status
   | Respond
   | IsFriday
+  | Calc String
   deriving (Show)
 
 data IrcMsgMeta =
@@ -106,6 +108,7 @@ evalUserMsg x n = case command x of
   Just Status -> status
   Just Respond -> changeRespondState n
   Just IsFriday -> friday
+  Just (Calc s) -> calc s
   Nothing -> do
     isResponding <- gets responding
     when isResponding $ reply x n
@@ -205,6 +208,13 @@ friday = do
   let msg = if day == "Friday" then "It's friday, meatbags!" else "Negative, meatbag. It is " ++ day ++ "."
   privmsg msg
 
+-- Calculate and print the result of the given input string
+calc :: String -> Net ()
+calc s = do
+  case calculate s of
+    Left err -> privmsg $ "Invalid meatbag mathematics: " ++ (unwords . lines . show) err
+    Right res -> privmsg $ show res
+
 -- See what command the given string is, or nothing if it isn't one
 command :: String -> Maybe Command
 command x
@@ -218,6 +228,7 @@ command x
   | is "status" = Just Status
   | is "respond" = Just Respond
   | is "friday" = Just IsFriday
+  | is "calc" = Just . Calc $ drop (length ":calc") x
   | otherwise = Nothing
   where
     is cmd = (cmdChar : cmd) `isPrefixOf` x
