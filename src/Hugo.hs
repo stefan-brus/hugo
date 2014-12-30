@@ -5,6 +5,7 @@ module Hugo where
 
 import Control.Applicative
 import Control.Arrow
+import Control.Monad.Random
 import Control.Monad.State
 
 import qualified Data.ByteString.Char8 as B
@@ -20,7 +21,6 @@ import qualified Database.Redis as R
 import System.Exit
 import System.IO
 import System.Locale
-import System.Random
 import System.Time
 
 import Text.Printf
@@ -118,10 +118,8 @@ reply :: String -> String -> Net ()
 reply x n
   | Config.nick `isInfixOf` x = do
       pb <- gets phrasebook
-      g <- gets randomgen
-      let (p,g') = generatePhrase pb g
-      modify $ updateRndGen g'
-      privmsg $ n ++ ", " ++ (unwords p)
+      p <- io $ evalRandIO $ generatePhrase pb
+      privmsg $ n ++ ", " ++ printPhrase p
   | otherwise = return ()
 
 -- Analyze a sentence - update the phrasebook with the words
@@ -170,10 +168,8 @@ roll x y = if x > 10000 || y > 10000 then privmsg "A limit of 10000 has been imp
 phrase :: Net ()
 phrase = do
   pb <- gets phrasebook
-  g <- gets randomgen
-  let (p,g') = generatePhrase pb g
-  privmsg $ unwords p
-  modify $ updateRndGen g'
+  p <- io $ evalRandIO $ generatePhrase pb
+  privmsg $ printPhrase p
 
 -- Turns phrase learning on or off. Admin command.
 changeLearnState :: String -> Net ()

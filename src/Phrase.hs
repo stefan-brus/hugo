@@ -2,11 +2,12 @@
 
 module Phrase where
 
+import Control.Monad.Random
+
 import Data.Char
+import Data.List.Split
 import qualified Data.Map as M
 import qualified Data.Set as S
-
-import System.Random
 
 -----------
 -- TYPES --
@@ -14,11 +15,13 @@ import System.Random
 
 type Word = String
 
-type Phrase = [Word]
+type Pair = (Word,Word)
 
-type Paths = S.Set Word
+type Phrase = [Pair]
 
-type Phrasebook = M.Map Word Paths
+type Paths = S.Set Pair
+
+type Phrasebook = M.Map Pair Paths
 
 ----------------------------
 -- PHRASE LOGIC FUNCTIONS --
@@ -26,75 +29,41 @@ type Phrasebook = M.Map Word Paths
 
 -- Update a given phrasebook with the given string
 learnString :: Phrasebook -> String -> Phrasebook
-learnString pb = learnPhrase pb . map toWord . words
+learnString pb = foldl learnPhrase pb . toPhrases
 
--- Update a given phrasebook with the givenphrase
+-- Update a given phrasebook with the given phrase
 learnPhrase :: Phrasebook -> Phrase -> Phrasebook
-learnPhrase pb = fst . foldl learn (pb,"")
+learnPhrase pb = fst . foldl learn (pb,("",""))
   where
-    learn :: (Phrasebook, Word) -> Word -> (Phrasebook, Word)
-    learn (res,"") w = (learnWordLink res w "",w)
-    learn (res,pw) w = (learnWordLink (learnWordLink res pw w) w "", w)
+    learn :: (Phrasebook, Pair) -> Pair -> (Phrasebook, Pair)
+    learn (res,("","")) p = (res,p)
+    learn (res,pp) p = (learnPairLink res pp p,p)
 
--- Update a given phrasebook with a link from the first word to the second
-learnWordLink :: Phrasebook -> Word -> Word -> Phrasebook
-learnWordLink pb w1 w2 =
-  case M.lookup w1 pb of
-    Just ws -> M.insert w1 (S.insert w2 ws) pb
-    Nothing -> M.insert w1 (S.singleton w2) pb
+-- Update a given phrasebook with a link from the first pair to the second
+learnPairLink :: Phrasebook -> Pair -> Pair -> Phrasebook
+learnPairLink pb p1 p2 =
+  case M.lookup p1 pb of
+    Just ps -> M.insert p1 (S.insert p2 ps) pb
+    Nothing -> M.insert p1 (S.singleton p2) pb
 
 -- Generate a phrase using the given phrasebook and random generator
-generatePhrase :: Phrasebook -> StdGen -> (Phrase, StdGen)
-generatePhrase pb g | M.size pb == 0 = ([],g)
-generatePhrase pb g =
-  let
-    len = M.size pb
-    (idx,g') = randomR (0,if len > 0 then len - 1 else len) g
-    (res,g'') = generate (M.toList pb !! idx) g'
-  in
-    (mergeDelims res,g'')
+generatePhrase :: (RandomGen g) => Phrasebook -> Rand g Phrase
+generatePhrase pb | M.size pb == 0 = return []
+generatePhrase pb = do
+  let len = M.size pb
+  idx <- getRandomR (0,len - 1)
+  generate (M.toList pb !! idx)
   where
-    mergeDelims :: Phrase -> Phrase
-    mergeDelims = reverse . foldl merge []
-      where
-        merge :: Phrase -> Word -> Phrase
-        merge [] w = [w]
-        merge res@(p:ps) w = if isDelim w then (p ++ w) : ps else w : res
-
-    generate :: (Word, Paths) -> StdGen -> (Phrase, StdGen)
-    generate ("", ps) gen = let (res,gen') = choose ps "" gen in (res,gen')
-    generate (w,ps) gen | S.size ps == 0 = ([w],gen)
-    generate (w,ps) gen =
-      let
-        len = S.size ps
-        (idx,gen') = randomR (0,if len > 0 then len - 1 else len) gen
-        w' = S.toList ps !! idx
-        ps' = case M.lookup w' pb of
-                Just paths -> paths
-                Nothing -> S.empty
-        (rest,gen'') = generate (w',ps') gen'
-      in
-        (w:rest,gen'')
-
-    choose :: Paths -> Word -> StdGen -> (Phrase, StdGen)
-    choose ps w gen = case randomR (0,199) gen :: (Int,StdGen) of
-      (0,gen') -> ([],gen')
-      (n,gen') | n `elem` [1..198] -> generate (w,ps) gen'
-      (_,gen') -> let
-                   (delim,gen'') = chooseDelim gen'
-                   (res,gen''') = generatePhrase pb gen''
-                 in
-                   ([delim] : res, gen''')
-
-    chooseDelim :: StdGen -> (Char, StdGen)
-    chooseDelim gen = let (idx,gen') = randomR (0, length delims - 1) gen in (delims !! idx,gen')
-
-    isDelim :: Word -> Bool
-    isDelim [c] = c `elem` delims
-    isDelim _ = False
-
-    delims :: String
-    delims = ".,!?:;"
+    generate :: (RandomGen g) => (Pair, Paths) -> Rand g Phrase
+    generate (p@(_,""),_) = return [p]
+    generate (p,ps) = do
+      let len = S.size ps
+      idx <- getRandomR (0,len - 1)
+      let nxt = S.toList ps !! idx
+      rst <- case M.lookup nxt pb of
+        Just ps' -> generate (nxt,ps')
+        Nothing -> return [nxt]
+      return (p:rst)
 
 ----------------------
 -- HELPER FUNCTIONS --
@@ -104,6 +73,25 @@ generatePhrase pb g =
 toWord :: String -> Word
 toWord = map toLower . filter isAlpha
 
--- Convert a string to a phrase
-toPaths :: String -> Paths
-toPaths = S.fromList . words
+-- Turn a string into a list of phrases. Splits the string on delimiters.
+toPhrases :: String -> [Phrase]
+toPhrases = map toPhrase . splitWhen (`elem` delims)
+
+-- Turn a string into a list of word pairs
+toPhrase :: String -> Phrase
+toPhrase = phraseify . map toWord . words
+  where
+    phraseify :: [Word] -> Phrase
+    phraseify [] = []
+    phraseify [w] = [(w,"")]
+    phraseify (w1:w2:ws) = (w1,w2) : phraseify (w2:ws)
+
+-- Turn a phrase into a string
+printPhrase :: Phrase -> String
+printPhrase [] = ""
+printPhrase [(w,"")] = w
+printPhrase ((w,_):ws) = w ++ " " ++ printPhrase ws
+
+-- Available phrase delimiters
+delims :: String
+delims = ".!?"
