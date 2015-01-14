@@ -51,7 +51,7 @@ expr = do
 term :: Parser Expr
 term = do
   t1 <- factor
-  ops <- many termOp
+  ops <- many $ try termOp
   return $ foldExpr t1 ops
   where
     termOp :: Parser (Char,Expr)
@@ -66,7 +66,7 @@ term = do
 factor :: Parser Expr
 factor = do
   n1 <- number
-  ops <- many facOp
+  ops <- many $ try facOp
   return $ foldExpr n1 ops
   where
     facOp :: Parser (Char,Expr)
