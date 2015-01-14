@@ -193,7 +193,7 @@ status = do
   l <- gets learning
   ps <- M.size <$> gets phrasebook
   privmsg $ if l then "I am currently learning meatbag speak." else "I am not currently learning."
-  privmsg $ "I know " ++ show ps ++ " meatbag words."
+  privmsg $ "I know " ++ show ps ++ " pairs of meatbag words."
 
 -- Check if it's friday
 friday :: Net ()
