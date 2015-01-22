@@ -2,6 +2,8 @@
 
 module Calc where
 
+import Data.Fixed (mod')
+
 import Numeric
 
 import Control.Applicative ((<$>))
@@ -15,6 +17,7 @@ data Expr =
   | Sub Expr Expr
   | Mul Expr Expr
   | Div Expr Expr
+  | Mod Expr Expr
   | Pow Expr Expr
   deriving (Show)
 
@@ -29,6 +32,7 @@ evalExpr (Add e1 e2) = evalExpr e1 + evalExpr e2
 evalExpr (Sub e1 e2) = evalExpr e1 - evalExpr e2
 evalExpr (Mul e1 e2) = evalExpr e1 * evalExpr e2
 evalExpr (Div e1 e2) = evalExpr e1 / evalExpr e2
+evalExpr (Mod e1 e2) = evalExpr e1 `mod'` evalExpr e2
 evalExpr (Pow e1 e2) = evalExpr e1 ** evalExpr e2
 
 -- Calculate the value of the given string
@@ -46,6 +50,7 @@ foldExpr e = foldl build e
       '*' -> Mul res ex
       '/' -> Div res ex
       '^' -> Pow res ex
+      '%' -> Mod res ex
       _ -> error "Unexpected operator"
 
 -- Parse an expression
@@ -79,7 +84,7 @@ factor = do
     facOp :: Parser (Char,Expr)
     facOp = do
       whitespace
-      op <- oneOf "*/"
+      op <- oneOf "*/%"
       whitespace
       n2 <- power
       return (op,n2)
