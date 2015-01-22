@@ -65,7 +65,7 @@ term = do
 -- Parse a factor
 factor :: Parser Expr
 factor = do
-  n1 <- number
+  n1 <- primary
   ops <- many $ try facOp
   return $ foldExpr n1 ops
   where
@@ -74,8 +74,24 @@ factor = do
       whitespace
       op <- oneOf "*/"
       whitespace
-      n2 <- number
+      n2 <- primary
       return (op,n2)
+
+-- Parse a primary
+primary :: Parser Expr
+primary = try parens <|> number
+
+-- Parse an expression in parentheses
+parens :: Parser Expr
+parens = do
+  neg <- option "" $ return <$> char '-'
+  whitespace
+  skip '('
+  whitespace
+  res <- expr
+  whitespace
+  skip ')'
+  return $ if null neg then res else Mul (Number (-1)) res
 
 -- Parse a number
 number :: Parser Expr
@@ -89,3 +105,9 @@ number = do
 -- Consume whitespace
 whitespace :: Parser ()
 whitespace = skipMany $ oneOf " \n\r\t"
+
+-- Skip a character
+skip :: Char -> Parser ()
+skip c = do
+  _ <- char c
+  return ()
