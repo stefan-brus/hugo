@@ -17,6 +17,10 @@ data Expr =
   | Div Expr Expr
   deriving (Show)
 
+----------------------------
+-- CALCULATOR LOGIC FUNCTIONS --
+----------------------------
+
 -- Evaluate an expression
 evalExpr :: Expr -> Double
 evalExpr (Number n) = n
@@ -101,6 +105,10 @@ number = do
   com <- option "" $ return <$> char '.'
   dec <- if null com then return "" else many1 digit
   return $ Number . head $ fst <$> (readSigned readFloat $ neg ++ int ++ com ++ dec)
+
+----------------------
+-- HELPER FUNCTIONS --
+----------------------
 
 -- Consume whitespace
 whitespace :: Parser ()
