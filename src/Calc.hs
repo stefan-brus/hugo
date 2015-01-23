@@ -10,7 +10,10 @@ import Control.Applicative ((<$>))
 
 import Text.ParserCombinators.Parsec
 
--- Expression type
+-----------
+-- TYPES --
+-----------
+
 data Expr =
     Number Double
   | Add Expr Expr
@@ -21,9 +24,9 @@ data Expr =
   | Pow Expr Expr
   deriving (Show)
 
-----------------------------
+--------------------------------
 -- CALCULATOR LOGIC FUNCTIONS --
-----------------------------
+--------------------------------
 
 -- Evaluate an expression
 evalExpr :: Expr -> Double
