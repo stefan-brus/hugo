@@ -4,6 +4,10 @@ module Config where
 
 import qualified Database.Redis as R
 
+------------------------
+-- GENERAL IRC CONFIG --
+------------------------
+
 server :: String
 server = "chat.freenode.net"
 
@@ -36,3 +40,13 @@ admin = "stefan_1"
 
 password :: String
 password = "hunter2"
+
+-----------------------
+-- WEB MODULE CONFIG --
+-----------------------
+
+weatherURL :: String
+weatherURL = "http://api.openweathermap.org/data/2.5/weather?q="
+
+defaultTempLoc :: String
+defaultTempLoc = "Berlin"

@@ -12,6 +12,7 @@ Commands:
 - ":status" - Check the current status
 - ":friday" - Check if it's friday today
 - ":calc (expression)" - Calculate the value of the given expression, e.g. ":calc 2 + 2"
+- ":temp (location)" - Look up the temperature at the given location
 
 Admin commands:
 - ":quit" - Ask hugo to quit

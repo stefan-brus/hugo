@@ -28,6 +28,7 @@ import Text.Printf
 import Calc
 import qualified Config
 import Phrase
+import Web
 import Words
 
 -----------
@@ -58,6 +59,7 @@ data Command =
   | Respond
   | IsFriday
   | Calc String
+  | Temp String
   deriving (Show)
 
 data IrcMsgMeta =
@@ -107,6 +109,7 @@ evalUserMsg x n = case command x of
   Just Respond -> changeRespondState n
   Just IsFriday -> friday
   Just (Calc s) -> calc s
+  Just (Temp l) -> temp l
   Nothing -> do
     isResponding <- gets responding
     when isResponding $ reply x n
@@ -209,6 +212,15 @@ calc s = do
     Left err -> privmsg $ "Invalid meatbag mathematics: " ++ (unwords . lines . show) err
     Right res -> privmsg $ show res
 
+-- Fetch the temperature for the given location
+temp :: String -> Net ()
+temp l = do
+  let loc = if null l then Config.defaultTempLoc else l
+  w <- io $ getWeather loc
+  case w of
+    Right Weather { temperature = t } -> privmsg $ printf "Temperature in %s: %.2fC, %.2fF" loc (toCelsius t) (toFahrenheit t)
+    Left err -> privmsg $ "Couldn't fetch weather data: " ++ err
+
 -- See what command the given string is, or nothing if it isn't one
 command :: String -> Maybe Command
 command x
@@ -223,6 +235,7 @@ command x
   | is "respond" = Just Respond
   | is "friday" = Just IsFriday
   | is "calc" = Just . Calc $ drop (length ":calc") x
+  | is "temp" = Just . Temp $ unwords . words $ drop (length ":temp") x
   | otherwise = Nothing
   where
     is cmd = (Config.cmdChar : cmd) `isPrefixOf` x
@@ -383,3 +396,11 @@ takeUntil c s = let res = takeWhile (/= c) s in Just (res,drop (length res + 1) 
 -- Find out what day it is
 today :: IO String
 today = (formatTime defaultTimeLocale "%A" . utctDay) <$> getCurrentTime
+
+-- Convert Kelvin to Celsius
+toCelsius :: Double -> Double
+toCelsius k = k - 273.15
+
+-- Convert Kelvin to Fahrenheit
+toFahrenheit :: Double -> Double
+toFahrenheit k = toCelsius k * 1.8 + 32
